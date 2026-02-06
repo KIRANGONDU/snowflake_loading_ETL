@@ -6,7 +6,7 @@ import snowflake.connector
 from snowflake.connector.pandas_tools import write_pandas
 
 
-# ENVIRONMENT INITIALIZATION
+# ENVIRONMENT 
 
 
 load_dotenv()
@@ -14,7 +14,7 @@ pd.set_option('display.max_columns', None)
 
 execution_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# SOURCE DATA INGESTION
+# source_files
 
 customer_csv_df = pd.read_csv("company1.csv")
 customer_excel_df = pd.read_excel("company2.xlsx")
@@ -22,7 +22,7 @@ customer_excel_df = pd.read_excel("company2.xlsx")
 customer_csv_df.columns = customer_csv_df.columns.str.strip().str.upper()
 customer_excel_df.columns = customer_excel_df.columns.str.strip().str.upper()
 
-# RAW LAYER PROCESSING
+# raw_layer
 
 raw_customer_df = pd.concat(
     [customer_csv_df, customer_excel_df],
@@ -41,12 +41,12 @@ def normalize_gender_value(gender_input):
 
 raw_customer_df['GENDER'] = raw_customer_df['GENDER'].apply(normalize_gender_value)
 
-# Date of Birth conversion
+# DOB_conversion
 raw_customer_df['DOB'] = pd.to_datetime(raw_customer_df['DOB'], errors='coerce')
 
 current_processing_date = pd.Timestamp.today()
 
-# Age calculation
+# Age_calculation
 raw_customer_df['AGE'] = current_processing_date.year - raw_customer_df['DOB'].dt.year
 raw_customer_df['AGE'] -= (
     (current_processing_date.month < raw_customer_df['DOB'].dt.month) |
@@ -60,7 +60,7 @@ raw_customer_df['DOB'] = raw_customer_df['DOB'].dt.strftime('%d-%m-%Y')
 raw_customer_df['LOAD_TIMESTAMP'] = execution_timestamp
 raw_customer_df = raw_customer_df.reset_index(drop=True)
 
-# FINAL LAYER PROCESSING
+# final_layer_processiong
 
 merged_customer_df = pd.merge(
     customer_csv_df,
@@ -70,19 +70,19 @@ merged_customer_df = pd.merge(
     suffixes=('_SRC_CSV', '_SRC_XLSX')
 )
 
-# Gender resolution
+# Gender_checking
 merged_customer_df['GENDER'] = merged_customer_df['GENDER_SRC_CSV'].combine_first(
     merged_customer_df['GENDER_SRC_XLSX']
 )
 merged_customer_df['GENDER'] = merged_customer_df['GENDER'].apply(normalize_gender_value)
 
-# DOB resolution
+# DOB_change
 merged_customer_df['DOB'] = merged_customer_df['DOB_SRC_CSV'].combine_first(
     merged_customer_df['DOB_SRC_XLSX']
 )
 merged_customer_df['DOB'] = pd.to_datetime(merged_customer_df['DOB'], errors='coerce')
 
-# Age calculation
+# calculation of age
 merged_customer_df['AGE'] = current_processing_date.year - merged_customer_df['DOB'].dt.year
 merged_customer_df['AGE'] -= (
     (current_processing_date.month < merged_customer_df['DOB'].dt.month) |
@@ -94,7 +94,7 @@ merged_customer_df['AGE'] -= (
 
 eligible_customer_df = merged_customer_df[merged_customer_df['AGE'] > 18].copy()
 
-# Name resolution
+# Name resolution or changes
 if 'NAME_SRC_CSV' in eligible_customer_df.columns:
     eligible_customer_df['NAME'] = eligible_customer_df['NAME_SRC_CSV']
 elif 'NAME_SRC_XLSX' in eligible_customer_df.columns:
@@ -116,7 +116,7 @@ final_customer_df = eligible_customer_df[
 ].reset_index(drop=True)
 
 
-# SNOWFLAKE LOADING
+# snowflake_laoding_insertion of data
 
 
 snowflake_conn = snowflake.connector.connect(
@@ -131,7 +131,7 @@ snowflake_conn = snowflake.connector.connect(
 snowflake_cursor = snowflake_conn.cursor()
 snowflake_cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
 
-# Create RAW table
+# Creation of tables (raw table)
 snowflake_cursor.execute("""
 CREATE OR REPLACE TABLE CUSTOMER_USER_DATA (
     USER_ID NUMBER,
@@ -146,7 +146,7 @@ CREATE OR REPLACE TABLE CUSTOMER_USER_DATA (
 )
 """)
 
-# Create FINAL table
+# Creation of table(final_table)
 snowflake_cursor.execute("""
 CREATE OR REPLACE TABLE CUSTOMER_FINAL_DATA (
     USER_ID NUMBER,
@@ -159,7 +159,7 @@ CREATE OR REPLACE TABLE CUSTOMER_FINAL_DATA (
 )
 """)
 
-# Load RAW layer
+#loading_raw_layers
 _, _, raw_row_count, _ = write_pandas(
     snowflake_conn,
     raw_customer_df,
@@ -167,7 +167,7 @@ _, _, raw_row_count, _ = write_pandas(
 )
 print(f"CUSTOMER_USER_DATA loaded successfully: {raw_row_count} rows")
 
-# Load FINAL layer
+# Loading_final_layers
 _, _, final_row_count, _ = write_pandas(
     snowflake_conn,
     final_customer_df,
