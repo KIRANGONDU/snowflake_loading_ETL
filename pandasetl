@@ -4,89 +4,101 @@ from dotenv import load_dotenv
 import snowflake.connector
 from snowflake.connector.pandas_tools import write_pandas
 
+# ENVIRONMENT SETUP
+
 load_dotenv()
-
 pd.set_option('display.max_columns', None)
- 
 
-csv_df = pd.read_csv("source_data.csv")
-excel_df = pd.read_excel("source_data.xlsx")
 
-csv_df.columns = csv_df.columns.str.strip().str.upper()
-excel_df.columns = excel_df.columns.str.strip().str.upper()
+# SOURCE DATA INGESTION
 
-##raw_layer
-raw_df = pd.concat([csv_df, excel_df], ignore_index=True)
 
-def standardize_gender(g):
-    if pd.isna(g):
+company1_df = pd.read_csv("company1.csv")
+company2_df = pd.read_excel("company2.xlsx")
+
+company1_df.columns = company1_df.columns.str.strip().str.upper()
+company2_df.columns = company2_df.columns.str.strip().str.upper()
+
+
+# RAW LAYER TRANSFORMATIONS
+
+
+raw_user_df = pd.concat(
+    [company1_df, company2_df],
+    ignore_index=True
+)
+
+def standardize_gender_value(gender_value):
+    if pd.isna(gender_value):
         return 'O'
-    g = str(g).strip().lower()
-    if g in ['male','m']:
+    gender_value = str(gender_value).strip().lower()
+    if gender_value in ['male', 'm']:
         return 'M'
-    elif g in ['female','f']:
+    elif gender_value in ['female', 'f']:
         return 'F'
     return 'O'
 
-raw_df['GENDER'] = raw_df['GENDER'].apply(standardize_gender)
+raw_user_df['GENDER'] = raw_user_df['GENDER'].apply(standardize_gender_value)
 
-raw_df['DOB'] = pd.to_datetime(raw_df['DOB'], errors='coerce')
+raw_user_df['DOB'] = pd.to_datetime(raw_user_df['DOB'], errors='coerce')
 
-today = pd.Timestamp.today()
+processing_date = pd.Timestamp.today()
 
-raw_df['AGE'] = today.year - raw_df['DOB'].dt.year
-raw_df['AGE'] -= (
-    (today.month < raw_df['DOB'].dt.month) |
-    ((today.month == raw_df['DOB'].dt.month) &
-     (today.day < raw_df['DOB'].dt.day))
+raw_user_df['AGE'] = processing_date.year - raw_user_df['DOB'].dt.year
+raw_user_df['AGE'] -= (
+    (processing_date.month < raw_user_df['DOB'].dt.month) |
+    (
+        (processing_date.month == raw_user_df['DOB'].dt.month) &
+        (processing_date.day < raw_user_df['DOB'].dt.day)
+    )
 )
 
-raw_df['DOB'] = raw_df['DOB'].dt.strftime('%d-%m-%Y')
+raw_user_df['DOB'] = raw_user_df['DOB'].dt.strftime('%d-%m-%Y')
 
-batch_time = pd.Timestamp.utcnow().tz_localize(None)
-raw_df['LOAD_TIMESTAMP'] = batch_time
+raw_user_df['LOAD_TIMESTAMP'] = pd.Timestamp.utcnow().tz_localize(None)
 
-# FINAL LAYER  
-joined_df = pd.merge(
-    csv_df,
-    excel_df,
+
+# FINAL LAYER TRANSFORMATIONS
+
+
+joined_user_df = pd.merge(
+    company1_df,
+    company2_df,
     on="USER_ID",
     how="inner",
-    suffixes=('_CSV', '_EXCEL')
+    suffixes=('_SRC1', '_SRC2')
 )
 
-# Gender selection
-joined_df['GENDER'] = joined_df['GENDER_CSV'].combine_first(joined_df['GENDER_EXCEL'])
-joined_df['GENDER'] = joined_df['GENDER'].apply(standardize_gender)
+joined_user_df['GENDER'] = joined_user_df['GENDER_SRC1'].combine_first(
+    joined_user_df['GENDER_SRC2']
+)
+joined_user_df['GENDER'] = joined_user_df['GENDER'].apply(standardize_gender_value)
 
-# DOB selection
-joined_df['DOB'] = joined_df['DOB_CSV'].combine_first(joined_df['DOB_EXCEL'])
-joined_df['DOB'] = pd.to_datetime(joined_df['DOB'], errors='coerce')
+joined_user_df['DOB'] = joined_user_df['DOB_SRC1'].combine_first(
+    joined_user_df['DOB_SRC2']
+)
+joined_user_df['DOB'] = pd.to_datetime(joined_user_df['DOB'], errors='coerce')
 
-# Age calculation
-joined_df['AGE'] = today.year - joined_df['DOB'].dt.year
-joined_df['AGE'] = joined_df['AGE'] - (
-    (today.month < joined_df['DOB'].dt.month) |
-    ((today.month == joined_df['DOB'].dt.month) &
-     (today.day < joined_df['DOB'].dt.day))
+joined_user_df['AGE'] = processing_date.year - joined_user_df['DOB'].dt.year
+joined_user_df['AGE'] -= (
+    (processing_date.month < joined_user_df['DOB'].dt.month) |
+    (
+        (processing_date.month == joined_user_df['DOB'].dt.month) &
+        (processing_date.day < joined_user_df['DOB'].dt.day)
+    )
 )
 
-final_df = joined_df[joined_df['AGE'] > 18].copy()
+eligible_user_df = joined_user_df[joined_user_df['AGE'] > 18].copy()
 
-# Safe NAME Selection
-if 'NAME_CSV' in final_df.columns:
-    final_df['NAME'] = final_df['NAME_CSV']
-elif 'NAME' not in final_df.columns and 'NAME_EXCEL' in final_df.columns:
-    final_df['NAME'] = final_df['NAME_EXCEL']
+if 'NAME_SRC1' in eligible_user_df.columns:
+    eligible_user_df['NAME'] = eligible_user_df['NAME_SRC1']
+elif 'NAME_SRC2' in eligible_user_df.columns:
+    eligible_user_df['NAME'] = eligible_user_df['NAME_SRC2']
 
-# Format DOB
-final_df['DOB'] = final_df['DOB'].dt.strftime('%d-%m-%Y')
+eligible_user_df['DOB'] = eligible_user_df['DOB'].dt.strftime('%d-%m-%Y')
+eligible_user_df['LOAD_TIMESTAMP'] = pd.Timestamp.now()
 
-# Audit Column
-final_df['LOAD_TIMESTAMP'] = pd.Timestamp.now()
-
-# Keep Only Required Columns
-final_df = final_df[
+final_user_df = eligible_user_df[
     [
         'USER_ID',
         'NAME',
@@ -96,14 +108,13 @@ final_df = final_df[
         'AGE',
         'LOAD_TIMESTAMP'
     ]
-]
-
-final_df = final_df.reset_index(drop=True)
+].reset_index(drop=True)
 
 
-# SNOWFLAKE LOAD (TABLES ALREADY EXIST)
+# SNOWFLAKE DATA LOAD
 
-conn = snowflake.connector.connect(
+
+snowflake_connection = snowflake.connector.connect(
     user=os.getenv("SNOWFLAKE_USER"),
     password=os.getenv("SNOWFLAKE_PASSWORD"),
     account=os.getenv("SNOWFLAKE_ACCOUNT"),
@@ -112,16 +123,27 @@ conn = snowflake.connector.connect(
     schema=os.getenv("SNOWFLAKE_SCHEMA")
 )
 
-cursor = conn.cursor()
+snowflake_cursor = snowflake_connection.cursor()
 
-cursor.execute(f"USE DATABASE {os.getenv('SNOWFLAKE_DATABASE')}")
-cursor.execute(f"USE SCHEMA {os.getenv('SNOWFLAKE_SCHEMA')}")
-cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
+snowflake_cursor.execute(f"USE DATABASE {os.getenv('SNOWFLAKE_DATABASE')}")
+snowflake_cursor.execute(f"USE SCHEMA {os.getenv('SNOWFLAKE_SCHEMA')}")
+snowflake_cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
 
-write_pandas(conn, raw_df, "RAW_USER", use_logical_type=True)
-write_pandas(conn, final_df, "FINAL_USER", use_logical_type=True)
+write_pandas(
+    snowflake_connection,
+    raw_user_df,
+    "RAW_USER",
+    use_logical_type=True
+)
 
-print("Snowflake Load Completed")
+write_pandas(
+    snowflake_connection,
+    final_user_df,
+    "FINAL_USER",
+    use_logical_type=True
+)
 
-cursor.close()
-conn.close()
+print("Snowflake Load Completed Successfully")
+
+snowflake_cursor.close()
+snowflake_connection.close()

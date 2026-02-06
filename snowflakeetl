@@ -15,8 +15,8 @@ load_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # Load Source Files
 
-csv_df = pd.read_csv("source_data.csv")
-excel_df = pd.read_excel("source_data.xlsx")
+csv_df = pd.read_csv("company1.csv")
+excel_df = pd.read_excel("company2.xlsx")
 
 csv_df.columns = csv_df.columns.str.strip().str.upper()
 excel_df.columns = excel_df.columns.str.strip().str.upper()
@@ -132,7 +132,7 @@ cursor.execute(f"USE WAREHOUSE {os.getenv('SNOWFLAKE_WAREHOUSE')}")
 
 # Create RAW table
 cursor.execute("""
-CREATE OR REPLACE TABLE RAW_USER_DATA (
+CREATE OR REPLACE TABLE CUSTOMER_USER_DATA (
     USER_ID NUMBER,
     NAME STRING,
     GENDER STRING,
@@ -147,7 +147,7 @@ CREATE OR REPLACE TABLE RAW_USER_DATA (
 
 # Create FINAL table
 cursor.execute("""
-CREATE OR REPLACE TABLE FINAL_USER_DATA (
+CREATE OR REPLACE TABLE CUSTOMER_FINAL_DATA (
     USER_ID NUMBER,
     NAME STRING,
     EMAIL STRING,
@@ -162,17 +162,17 @@ CREATE OR REPLACE TABLE FINAL_USER_DATA (
 success, nchunks, nrows, _ = write_pandas(
     conn,
     raw_df,
-    "RAW_USER_DATA"
+    "CUSTOMER_USER_DATA"
 )
-print(f"RAW_USER_DATA Loaded: {nrows} rows")
+print(f"CUSTOMER_USER_DATA Loaded: {nrows} rows")
 
 # Load FINAL
 success, nchunks, nrows, _ = write_pandas(
     conn,
     final_df,
-    "FINAL_USER_DATA"
+    "CUSTOMER_FINAL_DATA"
 )
-print(f"FINAL_USER_DATA Loaded: {nrows} rows")
+print(f"CUSTOMER_FINAL_DATA Loaded: {nrows} rows")
 
 cursor.close()
 conn.close()
