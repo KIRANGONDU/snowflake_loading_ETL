@@ -1,0 +1,29 @@
+2026-02-09 02:42:25,702 | INFO | Environment initialized successfully
+2026-02-09 02:42:26,837 | INFO | Source files loaded successfully
+2026-02-09 02:42:26,884 | INFO | Raw layer processing completed | Rows: 14
+2026-02-09 02:42:26,936 | INFO | Final layer processing completed | Rows: 3
+2026-02-09 02:42:26,946 | INFO | Snowflake Connector for Python Version: 4.2.0, Python Version: 3.13.5, Platform: Windows-11-10.0.26100-SP0
+2026-02-09 02:42:26,946 | INFO | Connecting to GLOBAL Snowflake domain
+2026-02-09 02:42:32,656 | INFO | Connected to Snowflake successfully
+2026-02-09 02:42:38,407 | INFO | Snowflake load completed | RAW: 14, FINAL: 3
+2026-02-09 02:42:38,550 | INFO | Snowflake connection closed
+2026-02-09 02:44:15,366 | INFO | Environment initialized successfully
+2026-02-09 02:44:15,368 | CRITICAL | Source file loading failed: [Errno 2] No such file or directory: 'company.csv'
+2026-02-09 02:44:50,187 | INFO | Environment initialized successfully
+2026-02-09 02:44:50,436 | INFO | Source files loaded successfully
+2026-02-09 02:44:50,445 | INFO | Raw layer processing completed | Rows: 14
+2026-02-09 02:44:50,457 | INFO | Final layer processing completed | Rows: 3
+2026-02-09 02:44:50,458 | INFO | Snowflake Connector for Python Version: 4.2.0, Python Version: 3.13.5, Platform: Windows-11-10.0.26100-SP0
+2026-02-09 02:44:50,459 | INFO | Connecting to GLOBAL Snowflake domain
+2026-02-09 02:44:53,707 | INFO | Connected to Snowflake successfully
+2026-02-09 02:44:56,886 | INFO | Snowflake load completed | RAW: 14, FINAL: 3
+2026-02-09 02:44:57,033 | INFO | Snowflake connection closed
+2026-02-09 02:47:25,286 | INFO | Environment initialized successfully
+2026-02-09 02:47:25,737 | INFO | Source files loaded successfully
+2026-02-09 02:47:25,745 | INFO | Raw layer processing completed | Rows: 14
+2026-02-09 02:47:25,757 | INFO | Final layer processing completed | Rows: 3
+2026-02-09 02:47:25,757 | INFO | Snowflake Connector for Python Version: 4.2.0, Python Version: 3.13.5, Platform: Windows-11-10.0.26100-SP0
+2026-02-09 02:47:25,758 | INFO | Connecting to GLOBAL Snowflake domain
+2026-02-09 02:47:29,626 | INFO | Connected to Snowflake successfully
+2026-02-09 02:47:33,021 | INFO | Snowflake load completed | RAW: 14, FINAL: 3
+2026-02-09 02:47:33,180 | INFO | Snowflake connection closed
